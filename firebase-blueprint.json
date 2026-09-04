@@ -1,0 +1,36 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profiles",
+      "description": "User preferences and metadata",
+      "fields": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "lastActiveAt": { "type": "string", "description": "ISO timestamp of user's last session" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" }
+      }
+    },
+    "watchlists": {
+      "title": "User Watchlists",
+      "description": "Saved stock tickers per user",
+      "fields": {
+        "tickers": { "type": "array", "description": "List of tracked ticker symbols" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      }
+    },
+    "stockStates": {
+      "title": "Per-User Stock Last-Seen Baseline",
+      "description": "The persistent baseline recording what the user last saw for each stock",
+      "fields": {
+        "ticker": { "type": "string", "description": "Stock symbol" },
+        "lastSeenAt": { "type": "string", "description": "ISO timestamp when the user last viewed or acknowledged this stock" },
+        "lastSeenPrice": { "type": "number", "description": "Price at user's last-seen point" },
+        "lastSeenVolume": { "type": "number", "description": "Trading volume at user's last-seen point" },
+        "lastSeenChangeScore": { "type": "number", "description": "Deterministic change score at last-seen point" },
+        "lastSeenNewsCount": { "type": "number", "description": "Number of news articles seen" },
+        "lastSeenEventIds": { "type": "array", "description": "Acknowledged event IDs" }
+      }
+    }
+  }
+}

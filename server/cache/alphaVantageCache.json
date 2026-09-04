@@ -1,0 +1,154 @@
+{
+  "quotes": {
+    "NVDA": {
+      "quote": {
+        "ticker": "NVDA",
+        "name": "NVIDIA Corporation",
+        "exchange": "NASDAQ",
+        "currency": "USD",
+        "price": 228.45,
+        "previousClose": 224.41,
+        "change": 4.04,
+        "percentChange": 1.80,
+        "volume": 38200000,
+        "averageVolume": 44200000,
+        "normalDailyRangePercent": 2.85,
+        "dayHigh": 231.10,
+        "dayLow": 226.50,
+        "fiftyTwoWeekHigh": 231.10,
+        "fiftyTwoWeekLow": 182.40,
+        "marketCap": "Unavailable (Standard Tier)",
+        "sector": "Semiconductors & AI",
+        "updatedAt": "2026-09-04T12:30:00.000Z",
+        "source": "Alpha Vantage",
+        "freshness": "delayed"
+      },
+      "cachedAt": 1788525000000
+    },
+    "AAPL": {
+      "quote": {
+        "ticker": "AAPL",
+        "name": "Apple Inc.",
+        "exchange": "NASDAQ",
+        "currency": "USD",
+        "price": 238.50,
+        "previousClose": 236.20,
+        "change": 2.30,
+        "percentChange": 0.97,
+        "volume": 41200000,
+        "averageVolume": 48500000,
+        "normalDailyRangePercent": 1.45,
+        "dayHigh": 239.40,
+        "dayLow": 235.80,
+        "fiftyTwoWeekHigh": 242.10,
+        "fiftyTwoWeekLow": 195.30,
+        "marketCap": "Unavailable (Standard Tier)",
+        "sector": "Consumer Electronics",
+        "updatedAt": "2026-09-04T12:30:00.000Z",
+        "source": "Alpha Vantage",
+        "freshness": "delayed"
+      },
+      "cachedAt": 1788525000000
+    }
+  },
+  "stats": {
+    "NVDA": {
+      "mean": 214.61,
+      "stdDev": 10.25,
+      "avgVolume": 44200000,
+      "normalDailyRangePercent": 2.85,
+      "observations": 30,
+      "cachedAt": 1788525000000,
+      "source": "Alpha Vantage TIME_SERIES_DAILY"
+    },
+    "AAPL": {
+      "mean": 231.20,
+      "stdDev": 6.40,
+      "avgVolume": 48500000,
+      "normalDailyRangePercent": 1.45,
+      "observations": 30,
+      "cachedAt": 1788525000000,
+      "source": "Alpha Vantage TIME_SERIES_DAILY"
+    }
+  },
+  "histories": {
+    "NVDA": {
+      "history": {
+        "ticker": "NVDA",
+        "range": "1M",
+        "points": [
+          { "timestamp": "2026-07-24", "price": 204.10, "volume": 42100000 },
+          { "timestamp": "2026-07-25", "price": 206.50, "volume": 41500000 },
+          { "timestamp": "2026-07-28", "price": 205.80, "volume": 39800000 },
+          { "timestamp": "2026-07-29", "price": 208.20, "volume": 43200000 },
+          { "timestamp": "2026-07-30", "price": 210.40, "volume": 46100000 },
+          { "timestamp": "2026-07-31", "price": 212.00, "volume": 45000000 },
+          { "timestamp": "2026-08-01", "price": 209.80, "volume": 40200000 },
+          { "timestamp": "2026-08-04", "price": 211.50, "volume": 41800000 },
+          { "timestamp": "2026-08-05", "price": 213.20, "volume": 44500000 },
+          { "timestamp": "2026-08-06", "price": 212.90, "volume": 42300000 },
+          { "timestamp": "2026-08-07", "price": 215.10, "volume": 47100000 },
+          { "timestamp": "2026-08-08", "price": 214.30, "volume": 43000000 },
+          { "timestamp": "2026-08-11", "price": 213.80, "volume": 40900000 },
+          { "timestamp": "2026-08-12", "price": 216.40, "volume": 45800000 },
+          { "timestamp": "2026-08-13", "price": 215.70, "volume": 42500000 },
+          { "timestamp": "2026-08-14", "price": 218.00, "volume": 48200000 },
+          { "timestamp": "2026-08-15", "price": 217.20, "volume": 41900000 },
+          { "timestamp": "2026-08-18", "price": 219.50, "volume": 46500000 },
+          { "timestamp": "2026-08-19", "price": 221.00, "volume": 49100000 },
+          { "timestamp": "2026-08-20", "price": 220.40, "volume": 43800000 },
+          { "timestamp": "2026-08-21", "price": 222.80, "volume": 47600000 },
+          { "timestamp": "2026-08-22", "price": 221.50, "volume": 42000000 },
+          { "timestamp": "2026-08-25", "price": 223.10, "volume": 44900000 },
+          { "timestamp": "2026-08-26", "price": 224.80, "volume": 46200000 },
+          { "timestamp": "2026-08-27", "price": 223.90, "volume": 41400000 },
+          { "timestamp": "2026-08-28", "price": 225.60, "volume": 45100000 },
+          { "timestamp": "2026-08-29", "price": 224.90, "volume": 42800000 },
+          { "timestamp": "2026-09-01", "price": 226.70, "volume": 47300000 },
+          { "timestamp": "2026-09-02", "price": 225.80, "volume": 43500000 },
+          { "timestamp": "2026-09-03", "price": 228.45, "volume": 38200000 }
+        ]
+      },
+      "cachedAt": 1788525000000
+    },
+    "AAPL": {
+      "history": {
+        "ticker": "AAPL",
+        "range": "1M",
+        "points": [
+          { "timestamp": "2026-07-24", "price": 225.10, "volume": 49100000 },
+          { "timestamp": "2026-07-25", "price": 226.20, "volume": 48200000 },
+          { "timestamp": "2026-07-28", "price": 227.00, "volume": 47500000 },
+          { "timestamp": "2026-07-29", "price": 228.40, "volume": 50100000 },
+          { "timestamp": "2026-07-30", "price": 229.10, "volume": 48900000 },
+          { "timestamp": "2026-07-31", "price": 230.50, "volume": 51200000 },
+          { "timestamp": "2026-08-01", "price": 229.80, "volume": 47300000 },
+          { "timestamp": "2026-08-04", "price": 230.90, "volume": 48100000 },
+          { "timestamp": "2026-08-05", "price": 231.50, "volume": 49500000 },
+          { "timestamp": "2026-08-06", "price": 231.00, "volume": 46800000 },
+          { "timestamp": "2026-08-07", "price": 232.40, "volume": 50300000 },
+          { "timestamp": "2026-08-08", "price": 231.90, "volume": 47600000 },
+          { "timestamp": "2026-08-11", "price": 232.80, "volume": 48400000 },
+          { "timestamp": "2026-08-12", "price": 233.50, "volume": 49800000 },
+          { "timestamp": "2026-08-13", "price": 232.90, "volume": 47100000 },
+          { "timestamp": "2026-08-14", "price": 234.10, "volume": 51000000 },
+          { "timestamp": "2026-08-15", "price": 233.70, "volume": 46500000 },
+          { "timestamp": "2026-08-18", "price": 235.00, "volume": 49200000 },
+          { "timestamp": "2026-08-19", "price": 235.80, "volume": 50800000 },
+          { "timestamp": "2026-08-20", "price": 235.20, "volume": 47900000 },
+          { "timestamp": "2026-08-21", "price": 236.40, "volume": 49700000 },
+          { "timestamp": "2026-08-22", "price": 235.90, "volume": 46800000 },
+          { "timestamp": "2026-08-25", "price": 236.70, "volume": 48300000 },
+          { "timestamp": "2026-08-26", "price": 237.50, "volume": 50100000 },
+          { "timestamp": "2026-08-27", "price": 236.80, "volume": 47200000 },
+          { "timestamp": "2026-08-28", "price": 237.90, "volume": 49400000 },
+          { "timestamp": "2026-08-29", "price": 237.10, "volume": 46900000 },
+          { "timestamp": "2026-09-01", "price": 238.20, "volume": 50600000 },
+          { "timestamp": "2026-09-02", "price": 237.60, "volume": 47800000 },
+          { "timestamp": "2026-09-03", "price": 238.50, "volume": 41200000 }
+        ]
+      },
+      "cachedAt": 1788525000000
+    }
+  }
+}
