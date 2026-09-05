@@ -9,8 +9,8 @@ import {
   updateProfile,
   signOut as fbSignOut, 
   signInAnonymously,
-  onAuthStateChanged as fbOnAuthStateChanged,
-  type User as FirebaseUser 
+  onAuthStateChanged,
+  type User 
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -37,161 +37,41 @@ export const db = config.firestoreDatabaseId && config.firestoreDatabaseId !== '
   ? getFirestore(firebaseApp, config.firestoreDatabaseId)
   : getFirestore(firebaseApp);
 
-export interface PulseUser {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  photoURL?: string | null;
-  isAnonymous?: boolean;
-  getIdToken: (forceRefresh?: boolean) => Promise<string>;
-}
-
-export type User = PulseUser | FirebaseUser;
-
-const PREVIEW_SESSION_KEY = 'pulse_preview_session';
-
-function getStoredPreviewUser(): PulseUser | null {
-  try {
-    const raw = localStorage.getItem(PREVIEW_SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return {
-      uid: parsed.uid || 'preview_user',
-      email: parsed.email || null,
-      displayName: parsed.displayName || null,
-      photoURL: parsed.photoURL || null,
-      isAnonymous: Boolean(parsed.isAnonymous),
-      getIdToken: async () => `preview_token_${parsed.uid}`,
-    };
-  } catch {
-    return null;
-  }
-}
-
-const authListeners = new Set<(user: User | null) => void>();
-
-function notifyAuthListeners(u: User | null) {
-  authListeners.forEach((listener) => {
-    try {
-      listener(u);
-    } catch (e) {
-      console.error('Auth listener error', e);
-    }
-  });
-}
-
-function setPreviewUser(u: PulseUser) {
-  localStorage.setItem(PREVIEW_SESSION_KEY, JSON.stringify({
-    uid: u.uid,
-    email: u.email,
-    displayName: u.displayName,
-    photoURL: u.photoURL,
-    isAnonymous: u.isAnonymous,
-  }));
-  notifyAuthListeners(u);
-}
-
-function clearPreviewUser() {
-  localStorage.removeItem(PREVIEW_SESSION_KEY);
-}
-
-// Listen to native Firebase auth state
-fbOnAuthStateChanged(auth, (firebaseUser) => {
-  if (firebaseUser) {
-    clearPreviewUser();
-    notifyAuthListeners(firebaseUser);
-  } else {
-    const preview = getStoredPreviewUser();
-    notifyAuthListeners(preview);
-  }
-});
-
-export function onAuthStateChanged(
-  _auth: typeof auth,
-  callback: (user: User | null) => void
-): () => void {
-  authListeners.add(callback);
-  // Synchronously deliver the active user or preview user if available
-  const initial = auth.currentUser || getStoredPreviewUser();
-  callback(initial as User | null);
-
-  return () => {
-    authListeners.delete(callback);
-  };
-}
+export { onAuthStateChanged, type User };
 
 export async function loginWithGoogle(): Promise<User> {
-  clearPreviewUser();
   const result = await signInWithPopup(auth, googleProvider);
   return result.user;
 }
 
 export async function loginWithEmail(email: string, pass: string): Promise<User> {
-  const trimmed = email.trim();
-  try {
-    const result = await signInWithEmailAndPassword(auth, trimmed, pass);
-    clearPreviewUser();
-    return result.user;
-  } catch (err: any) {
-    if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
-      console.info('Firebase email/password disabled in console, initializing local session for', trimmed);
-      const emailUser: PulseUser = {
-        uid: 'user_' + btoa(trimmed).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16),
-        email: trimmed,
-        displayName: trimmed.split('@')[0],
-        photoURL: null,
-        isAnonymous: false,
-        getIdToken: async () => `preview_email_token_${btoa(trimmed)}`,
-      };
-      setPreviewUser(emailUser);
-      return emailUser;
-    }
-    throw err;
-  }
+  const result = await signInWithEmailAndPassword(auth, email.trim(), pass);
+  return result.user;
 }
 
 export async function registerWithEmail(email: string, pass: string, displayName?: string): Promise<User> {
-  const trimmed = email.trim();
-  try {
-    const result = await createUserWithEmailAndPassword(auth, trimmed, pass);
-    if (displayName && result.user) {
-      try {
-        await updateProfile(result.user, { displayName: displayName.trim() });
-      } catch (e) {
-        console.warn('Could not set displayName on user profile', e);
-      }
+  const result = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+  if (displayName && result.user) {
+    try {
+      await updateProfile(result.user, { displayName: displayName.trim() });
+    } catch (e) {
+      console.warn('Could not set displayName on user profile', e);
     }
-    clearPreviewUser();
-    return result.user;
-  } catch (err: any) {
-    if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
-      console.info('Firebase email/password disabled in console, initializing local session for', trimmed);
-      const name = displayName?.trim() || trimmed.split('@')[0];
-      const emailUser: PulseUser = {
-        uid: 'user_' + btoa(trimmed).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16),
-        email: trimmed,
-        displayName: name,
-        photoURL: null,
-        isAnonymous: false,
-        getIdToken: async () => `preview_email_token_${btoa(trimmed)}`,
-      };
-      setPreviewUser(emailUser);
-      return emailUser;
-    }
-    throw err;
   }
+  return result.user;
 }
 
 export async function resetPasswordWithEmail(email: string): Promise<void> {
-  try {
-    await sendPasswordResetEmail(auth, email.trim());
-  } catch (err: any) {
-    if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
-      console.info('Password reset acknowledged for preview session');
-      return;
-    }
-    throw err;
-  }
+  await sendPasswordResetEmail(auth, email.trim());
+}
+
+export async function loginAsGuestEvaluator(): Promise<User> {
+  const result = await signInAnonymously(auth);
+  return result.user;
+}
+
+export async function logoutUser(): Promise<void> {
+  await fbSignOut(auth);
 }
 
 export function getFirebaseAuthErrorMessage(error: any): string {
@@ -210,17 +90,16 @@ export function getFirebaseAuthErrorMessage(error: any): string {
     case 'auth/email-already-in-use':
       return 'An account with this email address already exists. Please sign in instead.';
     case 'auth/operation-not-allowed':
-      return 'Email/password sign-in is not enabled in Firebase. Please use Instant Preview Access below.';
     case 'auth/admin-restricted-operation':
-      return 'Authentication method restricted by Firebase project permissions. Please use Instant Preview Access below.';
+      return 'This sign-in method is not enabled. Please sign in with Google.';
     case 'auth/weak-password':
       return 'The password is too weak. Please use at least 6 characters.';
     case 'auth/missing-password':
       return 'Please enter your password.';
     case 'auth/popup-closed-by-user':
-      return 'The sign-in popup was closed before completing.';
+      return 'The sign-in window was closed before completing.';
     case 'auth/too-many-requests':
-      return 'Access temporarily blocked due to multiple failed login attempts. Please try again later or reset your password.';
+      return 'Access temporarily blocked due to multiple failed attempts. Please try again later.';
     case 'auth/network-request-failed':
       return 'Network connection failed. Please check your internet connection.';
     default:
@@ -228,83 +107,37 @@ export function getFirebaseAuthErrorMessage(error: any): string {
   }
 }
 
-export async function loginAsGuestEvaluator(): Promise<User> {
-  try {
-    const result = await signInAnonymously(auth);
-    clearPreviewUser();
-    return result.user;
-  } catch (err) {
-    console.info('Firebase anonymous auth restricted by project permissions, initializing Instant Preview session', err);
-    let guestSeed = localStorage.getItem('pulse_guest_seed');
-    if (!guestSeed) {
-      guestSeed = Math.random().toString(36).substring(2, 9);
-      localStorage.setItem('pulse_guest_seed', guestSeed);
-    }
-    const guestUser: PulseUser = {
-      uid: `guest_evaluator_${guestSeed}`,
-      email: 'investor@preview.pulse',
-      displayName: 'Preview Investor',
-      photoURL: null,
-      isAnonymous: true,
-      getIdToken: async () => 'preview_guest_token',
-    };
-    setPreviewUser(guestUser);
-    return guestUser;
-  }
-}
-
-export async function logoutUser(): Promise<void> {
-  clearPreviewUser();
-  try {
-    await fbSignOut(auth);
-  } catch (e) {
-    console.warn('Firebase signOut error', e);
-  }
-  notifyAuthListeners(null);
-}
-
 // ----------------------------------------------------
 // Firestore Watchlist Persistence
 // ----------------------------------------------------
 
 export async function getUserWatchlist(userId: string): Promise<string[]> {
-  try {
-    const watchlistRef = doc(db, 'users', userId, 'watchlists', 'default');
-    const snap = await getDoc(watchlistRef);
-    if (snap.exists() && snap.data()?.tickers) {
-      return snap.data().tickers as string[];
-    }
-  } catch (e) {
-    console.warn('Firestore fetch failed, checking local fallback', e);
+  if (!userId) {
+    throw new Error('[Firestore] getUserWatchlist requires an authenticated userId.');
   }
 
-  // Local fallback persistence
-  const local = localStorage.getItem(`pulse_wl_${userId}`);
-  if (local) {
-    try {
-      return JSON.parse(local);
-    } catch {}
+  const watchlistRef = doc(db, 'users', userId, 'watchlists', 'default');
+  const snap = await getDoc(watchlistRef);
+  if (snap.exists() && snap.data()?.tickers) {
+    return snap.data().tickers as string[];
   }
 
   // Default initial watchlist for new users (NVIDIA, Apple, Tesla, Microsoft)
   const defaultList = ['NVDA', 'AAPL', 'TSLA', 'MSFT'];
-  try {
-    await saveUserWatchlist(userId, defaultList);
-  } catch {}
+  await saveUserWatchlist(userId, defaultList);
   return defaultList;
 }
 
 export async function saveUserWatchlist(userId: string, tickers: string[]): Promise<void> {
-  try {
-    localStorage.setItem(`pulse_wl_${userId}`, JSON.stringify(tickers));
-    const watchlistRef = doc(db, 'users', userId, 'watchlists', 'default');
-    await setDoc(watchlistRef, {
-      tickers,
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
-  } catch (e) {
-    console.warn('Could not persist watchlist to Firestore', e);
+  if (!userId) {
+    throw new Error('[Firestore] saveUserWatchlist requires an authenticated userId.');
   }
+
+  const watchlistRef = doc(db, 'users', userId, 'watchlists', 'default');
+  await setDoc(watchlistRef, {
+    tickers,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
 }
 
 // ----------------------------------------------------
@@ -312,49 +145,27 @@ export async function saveUserWatchlist(userId: string, tickers: string[]): Prom
 // ----------------------------------------------------
 
 export async function getUserStockStates(userId: string): Promise<Record<string, UserStockState>> {
+  if (!userId) {
+    throw new Error('[Firestore] getUserStockStates requires an authenticated userId.');
+  }
+
   const states: Record<string, UserStockState> = {};
-  
-  // Try Firestore first
-  try {
-    const statesCol = collection(db, 'users', userId, 'stockStates');
-    const snap = await getDocs(statesCol);
-    snap.forEach((d) => {
-      states[d.id] = d.data() as UserStockState;
-    });
-    if (Object.keys(states).length > 0) {
-      localStorage.setItem(`pulse_states_${userId}`, JSON.stringify(states));
-      return states;
-    }
-  } catch (e) {
-    console.warn('Firestore stockStates fetch error', e);
-  }
-
-  // Local storage fallback
-  const local = localStorage.getItem(`pulse_states_${userId}`);
-  if (local) {
-    try {
-      return JSON.parse(local);
-    } catch {}
-  }
-
+  const statesCol = collection(db, 'users', userId, 'stockStates');
+  const snap = await getDocs(statesCol);
+  snap.forEach((d) => {
+    states[d.id] = d.data() as UserStockState;
+  });
   return states;
 }
 
 export async function saveUserStockState(userId: string, state: UserStockState): Promise<void> {
-  try {
-    // Save to local cache
-    const currentLocal = localStorage.getItem(`pulse_states_${userId}`);
-    const parsed = currentLocal ? JSON.parse(currentLocal) : {};
-    parsed[state.ticker] = state;
-    localStorage.setItem(`pulse_states_${userId}`, JSON.stringify(parsed));
-
-    // Save to Firestore
-    const stateRef = doc(db, 'users', userId, 'stockStates', state.ticker);
-    await setDoc(stateRef, {
-      ...state,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
-  } catch (e) {
-    console.warn(`Could not save stock state for ${state.ticker}`, e);
+  if (!userId) {
+    throw new Error('[Firestore] saveUserStockState requires an authenticated userId.');
   }
+
+  const stateRef = doc(db, 'users', userId, 'stockStates', state.ticker);
+  await setDoc(stateRef, {
+    ...state,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 }

@@ -58,15 +58,21 @@ export default function App() {
           apiClient.setIdToken(null);
         }
         apiClient.setUserId(currentUser.uid);
-        const [savedTickers, savedStates] = await Promise.all([
-          getUserWatchlist(currentUser.uid),
-          getUserStockStates(currentUser.uid),
-        ]);
-        setTickers(savedTickers);
-        setUserStates(savedStates);
+        try {
+          const [savedTickers, savedStates] = await Promise.all([
+            getUserWatchlist(currentUser.uid),
+            getUserStockStates(currentUser.uid),
+          ]);
+          setTickers(savedTickers);
+          setUserStates(savedStates);
+        } catch (fsErr) {
+          console.error('[Firestore] Initialization fetch error:', fsErr);
+        }
       } else {
         apiClient.setUserId(null);
         apiClient.setIdToken(null);
+        setTickers(['NVDA', 'AAPL', 'TSLA', 'MSFT']);
+        setUserStates({});
       }
       setAuthLoading(false);
     });
