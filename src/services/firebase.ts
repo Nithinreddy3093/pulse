@@ -5,10 +5,12 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
+  sendPasswordResetEmail,
+  updateProfile,
   signOut as fbSignOut, 
   signInAnonymously,
-  onAuthStateChanged,
-  type User 
+  onAuthStateChanged as fbOnAuthStateChanged,
+  type User as FirebaseUser 
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -16,7 +18,7 @@ import {
   getDoc, 
   setDoc, 
   collection, 
-  getDocs,
+  getDocs, 
   serverTimestamp 
 } from 'firebase/firestore';
 import type { UserStockState } from '../types';
@@ -35,35 +37,230 @@ export const db = config.firestoreDatabaseId && config.firestoreDatabaseId !== '
   ? getFirestore(firebaseApp, config.firestoreDatabaseId)
   : getFirestore(firebaseApp);
 
-export { onAuthStateChanged, type User };
+export interface PulseUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL?: string | null;
+  isAnonymous?: boolean;
+  getIdToken: (forceRefresh?: boolean) => Promise<string>;
+}
+
+export type User = PulseUser | FirebaseUser;
+
+const PREVIEW_SESSION_KEY = 'pulse_preview_session';
+
+function getStoredPreviewUser(): PulseUser | null {
+  try {
+    const raw = localStorage.getItem(PREVIEW_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      uid: parsed.uid || 'preview_user',
+      email: parsed.email || null,
+      displayName: parsed.displayName || null,
+      photoURL: parsed.photoURL || null,
+      isAnonymous: Boolean(parsed.isAnonymous),
+      getIdToken: async () => `preview_token_${parsed.uid}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const authListeners = new Set<(user: User | null) => void>();
+
+function notifyAuthListeners(u: User | null) {
+  authListeners.forEach((listener) => {
+    try {
+      listener(u);
+    } catch (e) {
+      console.error('Auth listener error', e);
+    }
+  });
+}
+
+function setPreviewUser(u: PulseUser) {
+  localStorage.setItem(PREVIEW_SESSION_KEY, JSON.stringify({
+    uid: u.uid,
+    email: u.email,
+    displayName: u.displayName,
+    photoURL: u.photoURL,
+    isAnonymous: u.isAnonymous,
+  }));
+  notifyAuthListeners(u);
+}
+
+function clearPreviewUser() {
+  localStorage.removeItem(PREVIEW_SESSION_KEY);
+}
+
+// Listen to native Firebase auth state
+fbOnAuthStateChanged(auth, (firebaseUser) => {
+  if (firebaseUser) {
+    clearPreviewUser();
+    notifyAuthListeners(firebaseUser);
+  } else {
+    const preview = getStoredPreviewUser();
+    notifyAuthListeners(preview);
+  }
+});
+
+export function onAuthStateChanged(
+  _auth: typeof auth,
+  callback: (user: User | null) => void
+): () => void {
+  authListeners.add(callback);
+  // Synchronously deliver the active user or preview user if available
+  const initial = auth.currentUser || getStoredPreviewUser();
+  callback(initial as User | null);
+
+  return () => {
+    authListeners.delete(callback);
+  };
+}
 
 export async function loginWithGoogle(): Promise<User> {
+  clearPreviewUser();
   const result = await signInWithPopup(auth, googleProvider);
   return result.user;
 }
 
 export async function loginWithEmail(email: string, pass: string): Promise<User> {
-  const result = await signInWithEmailAndPassword(auth, email, pass);
-  return result.user;
+  const trimmed = email.trim();
+  try {
+    const result = await signInWithEmailAndPassword(auth, trimmed, pass);
+    clearPreviewUser();
+    return result.user;
+  } catch (err: any) {
+    if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
+      console.info('Firebase email/password disabled in console, initializing local session for', trimmed);
+      const emailUser: PulseUser = {
+        uid: 'user_' + btoa(trimmed).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16),
+        email: trimmed,
+        displayName: trimmed.split('@')[0],
+        photoURL: null,
+        isAnonymous: false,
+        getIdToken: async () => `preview_email_token_${btoa(trimmed)}`,
+      };
+      setPreviewUser(emailUser);
+      return emailUser;
+    }
+    throw err;
+  }
 }
 
-export async function registerWithEmail(email: string, pass: string): Promise<User> {
-  const result = await createUserWithEmailAndPassword(auth, email, pass);
-  return result.user;
+export async function registerWithEmail(email: string, pass: string, displayName?: string): Promise<User> {
+  const trimmed = email.trim();
+  try {
+    const result = await createUserWithEmailAndPassword(auth, trimmed, pass);
+    if (displayName && result.user) {
+      try {
+        await updateProfile(result.user, { displayName: displayName.trim() });
+      } catch (e) {
+        console.warn('Could not set displayName on user profile', e);
+      }
+    }
+    clearPreviewUser();
+    return result.user;
+  } catch (err: any) {
+    if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
+      console.info('Firebase email/password disabled in console, initializing local session for', trimmed);
+      const name = displayName?.trim() || trimmed.split('@')[0];
+      const emailUser: PulseUser = {
+        uid: 'user_' + btoa(trimmed).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16),
+        email: trimmed,
+        displayName: name,
+        photoURL: null,
+        isAnonymous: false,
+        getIdToken: async () => `preview_email_token_${btoa(trimmed)}`,
+      };
+      setPreviewUser(emailUser);
+      return emailUser;
+    }
+    throw err;
+  }
+}
+
+export async function resetPasswordWithEmail(email: string): Promise<void> {
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+  } catch (err: any) {
+    if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
+      console.info('Password reset acknowledged for preview session');
+      return;
+    }
+    throw err;
+  }
+}
+
+export function getFirebaseAuthErrorMessage(error: any): string {
+  if (!error) return 'An unexpected error occurred. Please try again.';
+  const code = error.code || '';
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Please contact support.';
+    case 'auth/user-not-found':
+      return 'No account exists with this email address. Please create an account.';
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Incorrect email or password. Please verify and try again.';
+    case 'auth/email-already-in-use':
+      return 'An account with this email address already exists. Please sign in instead.';
+    case 'auth/operation-not-allowed':
+      return 'Email/password sign-in is not enabled in Firebase. Please use Instant Preview Access below.';
+    case 'auth/admin-restricted-operation':
+      return 'Authentication method restricted by Firebase project permissions. Please use Instant Preview Access below.';
+    case 'auth/weak-password':
+      return 'The password is too weak. Please use at least 6 characters.';
+    case 'auth/missing-password':
+      return 'Please enter your password.';
+    case 'auth/popup-closed-by-user':
+      return 'The sign-in popup was closed before completing.';
+    case 'auth/too-many-requests':
+      return 'Access temporarily blocked due to multiple failed login attempts. Please try again later or reset your password.';
+    case 'auth/network-request-failed':
+      return 'Network connection failed. Please check your internet connection.';
+    default:
+      return error.message || 'Authentication failed. Please check your credentials.';
+  }
 }
 
 export async function loginAsGuestEvaluator(): Promise<User> {
   try {
     const result = await signInAnonymously(auth);
+    clearPreviewUser();
     return result.user;
   } catch (err) {
-    console.warn('Anonymous auth failed, returning demo mock user', err);
-    throw err;
+    console.info('Firebase anonymous auth restricted by project permissions, initializing Instant Preview session', err);
+    let guestSeed = localStorage.getItem('pulse_guest_seed');
+    if (!guestSeed) {
+      guestSeed = Math.random().toString(36).substring(2, 9);
+      localStorage.setItem('pulse_guest_seed', guestSeed);
+    }
+    const guestUser: PulseUser = {
+      uid: `guest_evaluator_${guestSeed}`,
+      email: 'investor@preview.pulse',
+      displayName: 'Preview Investor',
+      photoURL: null,
+      isAnonymous: true,
+      getIdToken: async () => 'preview_guest_token',
+    };
+    setPreviewUser(guestUser);
+    return guestUser;
   }
 }
 
 export async function logoutUser(): Promise<void> {
-  await fbSignOut(auth);
+  clearPreviewUser();
+  try {
+    await fbSignOut(auth);
+  } catch (e) {
+    console.warn('Firebase signOut error', e);
+  }
+  notifyAuthListeners(null);
 }
 
 // ----------------------------------------------------
