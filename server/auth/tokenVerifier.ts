@@ -17,7 +17,7 @@ interface GoogleCerts {
 let cachedCerts: GoogleCerts | null = null;
 let certsExpiry = 0;
 
-const PROJECT_ID = firebaseConfig.projectId || 'youthful-crowbar-09v0l';
+const PROJECT_ID = firebaseConfig.projectId || 'pulse-c38be';
 const CERTS_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 
 async function getGooglePublicCerts(): Promise<GoogleCerts> {

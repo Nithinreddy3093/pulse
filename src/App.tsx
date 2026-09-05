@@ -3,7 +3,6 @@ import {
   auth, 
   onAuthStateChanged, 
   logoutUser, 
-  loginAsGuestEvaluator,
   getUserWatchlist, 
   saveUserWatchlist, 
   getUserStockStates, 
@@ -113,17 +112,20 @@ export default function App() {
     }
   }, [user, fetchWatchlistChanges]);
 
-  // Handle instant evaluator sign-in
-  const handleInstantDemoLogin = async () => {
-    try {
-      setAuthLoading(true);
-      await loginAsGuestEvaluator();
-    } catch (e) {
-      console.error('Instant evaluator login error:', e);
-      setIsAuthOpen(true);
-    } finally {
-      setAuthLoading(false);
-    }
+  // Handle instant evaluator sign-in without attempting disabled Firebase anonymous auth
+  const handleInstantDemoLogin = () => {
+    const guestUser: any = {
+      uid: 'evaluator-guest-user',
+      displayName: 'Evaluator Guest',
+      email: null,
+      isAnonymous: true,
+      getIdToken: async () => null,
+    };
+    apiClient.setUserId('evaluator-guest-user');
+    apiClient.setIdToken(null);
+    setUser(guestUser);
+    setTickers(['NVDA', 'AAPL', 'TSLA', 'MSFT']);
+    setUserStates({});
   };
 
   // Handle Scenario trigger in DemoBar
@@ -137,8 +139,14 @@ export default function App() {
   const handleMarkSeen = async (ticker: string) => {
     const updated = await apiClient.markAllSeen(tickers, ticker);
     const newState = updated[ticker];
-    if (newState && user) {
-      await saveUserStockState(user.uid, newState);
+    if (newState) {
+      if (user && !user.isAnonymous) {
+        try {
+          await saveUserStockState(user.uid, newState);
+        } catch (e) {
+          console.warn('[Firestore] Could not persist stock state:', e);
+        }
+      }
       setUserStates((prev) => ({ ...prev, [ticker]: newState }));
     }
   };
@@ -146,12 +154,16 @@ export default function App() {
   // Handle Mark All Stocks as Seen
   const handleMarkAllSeen = async () => {
     const updated = await apiClient.markAllSeen(tickers);
-    if (user) {
-      for (const t of Object.keys(updated)) {
-        await saveUserStockState(user.uid, updated[t]);
+    if (user && !user.isAnonymous) {
+      try {
+        for (const t of Object.keys(updated)) {
+          await saveUserStockState(user.uid, updated[t]);
+        }
+      } catch (e) {
+        console.warn('[Firestore] Could not persist stock states:', e);
       }
-      setUserStates((prev) => ({ ...prev, ...updated }));
     }
+    setUserStates((prev) => ({ ...prev, ...updated }));
   };
 
   // Handle Add Stock
@@ -160,8 +172,12 @@ export default function App() {
     if (!tickers.includes(sym)) {
       const next = [...tickers, sym];
       setTickers(next);
-      if (user) {
-        await saveUserWatchlist(user.uid, next);
+      if (user && !user.isAnonymous) {
+        try {
+          await saveUserWatchlist(user.uid, next);
+        } catch (e) {
+          console.warn('[Firestore] Could not persist watchlist:', e);
+        }
       }
     }
   };
@@ -171,13 +187,21 @@ export default function App() {
     const sym = ticker.toUpperCase();
     const next = tickers.filter((t) => t !== sym);
     setTickers(next);
-    if (user) {
-      await saveUserWatchlist(user.uid, next);
+    if (user && !user.isAnonymous) {
+      try {
+        await saveUserWatchlist(user.uid, next);
+      } catch (e) {
+        console.warn('[Firestore] Could not persist watchlist:', e);
+      }
     }
   };
 
   const handleLogout = async () => {
-    await logoutUser();
+    if (user && !user.isAnonymous) {
+      await logoutUser();
+    }
+    apiClient.setUserId(null);
+    apiClient.setIdToken(null);
     setUser(null);
     setSummary(null);
     setSelectedStockTicker(null);

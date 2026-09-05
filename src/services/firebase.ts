@@ -8,7 +8,6 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   signOut as fbSignOut, 
-  signInAnonymously,
   onAuthStateChanged,
   type User 
 } from 'firebase/auth';
@@ -63,11 +62,6 @@ export async function registerWithEmail(email: string, pass: string, displayName
 
 export async function resetPasswordWithEmail(email: string): Promise<void> {
   await sendPasswordResetEmail(auth, email.trim());
-}
-
-export async function loginAsGuestEvaluator(): Promise<User> {
-  const result = await signInAnonymously(auth);
-  return result.user;
 }
 
 export async function logoutUser(): Promise<void> {
