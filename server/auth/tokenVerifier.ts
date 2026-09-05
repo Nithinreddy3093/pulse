@@ -8,7 +8,6 @@
 import https from 'https';
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
-import firebaseConfig from '../../firebase-applet-config.json';
 
 interface GoogleCerts {
   [kid: string]: string;
@@ -17,7 +16,7 @@ interface GoogleCerts {
 let cachedCerts: GoogleCerts | null = null;
 let certsExpiry = 0;
 
-const PROJECT_ID = firebaseConfig.projectId || 'pulse-c38be';
+const PROJECT_ID = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'pulse-c38be';
 const CERTS_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 
 async function getGooglePublicCerts(): Promise<GoogleCerts> {

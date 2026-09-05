@@ -40,7 +40,9 @@ export class AlphaVantageAdapter {
   private statsCache = new Map<string, CachedStats>();
   private inFlightQuoteRequests = new Map<string, Promise<StockQuote | null>>();
   private inFlightHistoryRequests = new Map<string, Promise<any>>();
-  private cacheFilePath = path.join(process.cwd(), 'server', 'cache', 'alphaVantageCache.json');
+  private cacheFilePath = process.env.VERCEL
+    ? path.join('/tmp', 'alphaVantageCache.json')
+    : path.join(process.cwd(), 'server', 'cache', 'alphaVantageCache.json');
 
   // Cache TTL configurations
   private readonly QUOTE_TTL_MS = 3 * 60 * 1000; // 3 minutes
@@ -64,8 +66,10 @@ export class AlphaVantageAdapter {
    */
   private loadDiskCache(): void {
     try {
-      if (fs.existsSync(this.cacheFilePath)) {
-        const raw = fs.readFileSync(this.cacheFilePath, 'utf-8');
+      const bundledCache = path.join(process.cwd(), 'server', 'cache', 'alphaVantageCache.json');
+      const targetFile = fs.existsSync(this.cacheFilePath) ? this.cacheFilePath : (fs.existsSync(bundledCache) ? bundledCache : null);
+      if (targetFile) {
+        const raw = fs.readFileSync(targetFile, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed.quotes) {
           for (const [k, v] of Object.entries(parsed.quotes)) {
